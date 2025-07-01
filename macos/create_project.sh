@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/zsh 
 # Script para crear manualmente la estructura de un nuevo proyecto a partir de Template
 
 PROJECT_NAME=$(basename "$PWD")
