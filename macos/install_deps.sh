@@ -15,9 +15,9 @@ fi
 
 echo "Dependencias instaladas." 
 # Copiar estructura de Template al crear un nuevo proyecto
-if [ ! -d "$PROJECT_NAME" ]; then
-  cp -r "$(dirname "$0")/Template" "$PROJECT_NAME"
-  for f in "$PROJECT_NAME"/*; do mv "$f" "$PROJECT_NAME/$(basename "$f" | sed "s/Template/$PROJECT_NAME/g")"; done
+if [ ! -d "$(dirname "$0")/$PROJECT_NAME" ]; then
+  cp -r "$(dirname "$0")/Template" "$(dirname "$0")/$PROJECT_NAME"
+  for f in "$(dirname "$0")/$PROJECT_NAME"/*; do mv "$f" "$(dirname "$0")/$PROJECT_NAME/$(basename "$f" | sed "s/Template/$PROJECT_NAME/g")"; done
   echo "[INFO] Proyecto $PROJECT_NAME creado a partir de Template."
 fi
 
