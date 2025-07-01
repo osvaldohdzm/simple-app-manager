@@ -205,133 +205,199 @@ EOF
 echo "✅ Carpetas y Prompt.md con contenido específico creados."
 
 
-
 # --- Configuración ---
 # Directorio donde se encuentra este script.
-# Para que funcione, este script debe estar en una subcarpeta del proyecto (ej. /scripts).
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-# Directorio raíz del proyecto (un nivel arriba del directorio del script).
+# Directorio raíz del proyecto.
 PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+# Nombre del proyecto (el nombre de la carpeta raíz).
+PROJECT_NAME=$(basename "$PROJECT_ROOT")
 # Archivo de salida donde se guardará todo el código.
 OUTPUT_FILE="$PROJECT_ROOT/specs/code-context.txt"
 
 echo "Proyecto raíz detectado en: $PROJECT_ROOT"
-echo "El contexto completo del código se guardará en: $OUTPUT_FILE"
+echo "Nombre del proyecto: $PROJECT_NAME"
 
-# --- Exclusiones ---
 
-# Directorios completos a excluir. El script los buscará por nombre en cualquier parte del proyecto.
-# Son carpetas de dependencias, cache, builds o configuración de IDEs.
-EXCLUDE_DIRS=(
+# --- Exclusiones Dinámicas por Proyecto ---
+
+echo "Seleccionando configuración de exclusión para el proyecto '$PROJECT_NAME'..."
+
+case "$PROJECT_NAME" in
+    "Emerald")
+        echo "Usando configuración para 'Emerald'."
+        # Directorios a excluir
+        EXCLUDE_DIRS=(
+            .git node_modules .expo .idea .vscode build dist
+            android/.gradle android/app/build ios/Pods ios/build android/build
+            coverage flow-typed temp tmp uploads notebook-renderer-react-sample
+            scripts/uploads_server/venv311
+        )
+        # Archivos a excluir por nombre/patrón
+        EXCLUDE_FILES=(
+            "*.lock" "yarn.lock" "package-lock.json" "*.podspec" "README.md"
+            "LICENSE" "code-context.txt" "app.json" "package.json"
+            "metro.config.js" "tsconfig.json" "eslint.config.js" "babel.config.js"
+            "jest.config.js" "prettier.config.js" "styled.d.ts" ".env*" "Gemfile"
+            "Gemfile.lock" "Podfile.lock" "android/gradlew" "android/gradlew.bat"
+            "android/gradle/wrapper/gradle-wrapper.jar" "android/app/debug.keystore"
+            "android/app/proguard-rules.pro" "android/gradle.properties"
+            "android/settings.gradle" "android/build.gradle" "android/app/build.gradle"
+            "ios/*.xcodeproj" "ios/*.xcworkspace" "ios/*.xcscheme" "ios/Podfile"
+            "ios/Cartfile" "ios/Cartfile.resolved"
+        )
+        # Extensiones a excluir
+        EXCLUDE_EXTENSIONS=(
+            jpg png jpeg gif svg webp ico mp4 mov avi mkv log zip tar gz
+            otf ttf map db sqlite3 tab keystream bin md py html css xml
+            bak tmp swp DS_Store pyc sh keystore jar exe egg
+        )
+        ;;
+
+    "Zafiro")
+        echo "Usando configuración optimizada para Flutter ('Zafiro')."
+        
+        # --- Directorios a excluir ---
+        # Se excluyen carpetas de builds, cache, dependencias y configuraciones de IDE.
+        EXCLUDE_DIRS=(
+    # Estándar
     .git
-    node_modules
-    .expo
     .idea
     .vscode
     build
-    dist
+
+    # Cache y dependencias de Dart/Flutter
+    .dart_tool
+
+    # Plataformas (compilados y dependencias)
     android/.gradle
     android/app/build
-    ios/Pods
     ios/build
-    android/build
-    coverage
-    flow-typed
-    temp
-    tmp
-    uploads
-    notebook-renderer-react-sample
-    scripts/uploads_server/venv311
+    ios/Pods
+    ios/Runner.xcworkspace
+    linux/build
+    macos/build
+    windows/build
+    web/build
+
+    # Archivos temporales generados por Flutter
+    linux/flutter/ephemeral
+    macos/Flutter/ephemeral
+    windows/flutter/ephemeral
+
+    # Directorios de assets que contienen binarios
+    "*.xcassets"
 )
 
-# Patrones de archivos a excluir por nombre.
+# --- Archivos a excluir por nombre/patrón ---
 EXCLUDE_FILES=(
-    "*.lock"
-    "yarn.lock"
-    "package-lock.json"
-    "*.podspec"
-    "README.md"
-    "LICENSE"
-    "code-context.txt" # Excluir el propio archivo de salida
-    "app.json"
-    "package.json"
-    "metro.config.js"
-    "tsconfig.json"
-    "eslint.config.js"
-    "babel.config.js"
-    "jest.config.js"
-    "prettier.config.js"
-    "styled.d.ts"
-    ".env*" # Excluye todos los archivos .env (ej. .env, .env.development)
-    "Gemfile"
-    "Gemfile.lock"
+    # Archivos de bloqueo de dependencias (NO incluir pubspec.lock)
     "Podfile.lock"
-    "android/gradlew"
-    "android/gradlew.bat"
-    "android/gradle/wrapper/gradle-wrapper.jar"
-    "android/app/debug.keystore"
-    "android/app/proguard-rules.pro"
-    "android/gradle.properties"
-    "android/settings.gradle"
-    "android/build.gradle"
-    "android/app/build.gradle"
-    "ios/*.xcodeproj"
-    "ios/*.xcworkspace"
-    "ios/*.xcscheme"
-    "ios/Podfile"
-    "ios/Cartfile"
-    "ios/Cartfile.resolved"
+    "package-lock.json"
+    "yarn.lock"
+    "*.lock"
+
+    # Configuración local y de IDE
+    "*.iml"
+    ".DS_Store"
+    "local.properties"
+    "*.pbxuser"
+    "*.xcscheme"
+
+    # Scripts de wrapper
+    "gradlew"
+    "gradlew.bat"
+
+    # Archivos generados por Flutter
+    ".metadata"
+    ".flutter-plugins"
+    ".flutter-plugins-dependencies"
+    "flutter_export_environment.sh"
+    "generated_plugins.cmake"
+
+    # Plugins autogenerados
+    "GeneratedPluginRegistrant.java"
+    "GeneratedPluginRegistrant.h"
+    "GeneratedPluginRegistrant.m"
+    "GeneratedPluginRegistrant.swift"
+    "GeneratedPluginRegistrant.cc"
+
+    # Bundles y recursos de Xcode
+    "*.xcworkspace"
+    "*.appiconset"
+    "*.imageset"
+
+    # Archivos propios a excluir
+    "code-context.txt"
+
+    # Documentación genérica no esencial
+    "LICENSE"
+    "README.md"
 )
 
-# Extensiones de archivo a excluir.
-# Son assets, binarios o archivos generados que no son útiles para el contexto de la IA.
+# --- Extensiones de archivo a excluir ---
 EXCLUDE_EXTENSIONS=(
-    # Imágenes
-    jpg png jpeg gif svg webp ico
-    # Videos
-    mp4 mov avi mkv
-    # Archivos comprimidos y logs
-    log zip tar gz
+    # Imágenes y assets visuales
+    png jpg jpeg gif webp ico svg
+
     # Fuentes
-    otf ttf
-    # Mapas de código fuente
-    map
-    # Bases de datos locales
-    db sqlite3
-    # Archivos de caché de Kotlin/Gradle que a veces se cuelan
-    tab keystream bin
-    md
-    py
-    html
-    css
-    xml
-    bak
-    tmp
-    swp
-    DS_Store
-    pyc
-    sh
-    keystore 
-    jar
-    exe
-    egg
+    ttf otf
+
+    # Binarios, compilados y paquetes
+    zip tar gz a so jar dll bin
+    apk aar ipa app exe
+
+    # Base de datos local
+    db db-journal
+
+    # Archivos de cache/build de plataformas nativas
+    prof profm textproto storyboard xib arsc flat
+    d dex dic
+
+    # Configuración de entornos Apple/Xcode
+    xcconfig plist entitlements pbxproj xcworkspacedata xcsettings
+
+    # Configuración de proyectos multiplataforma
+    cmake gradle properties
+
+    # Archivos generados de JS/TS
+    cjs mjs d.ts d.mts
+
+    # Archivos de configuración general
+    yaml yml json
+
+    # Archivos no útiles para IA
+    md txt
+
+    # Scripts auxiliares
+    sh py h gitignore cc cpp rc manifest js
 )
+        ;;
+
+    *)
+        echo "AVISO: No se encontró una configuración específica para '$PROJECT_NAME'."
+        echo "Usando configuración por defecto (similar a 'Emerald')."
+        # Configuración por defecto para cualquier otro proyecto
+        EXCLUDE_DIRS=(.git node_modules build dist __pycache__ venv)
+        EXCLUDE_FILES=("*.lock" "README.md" "LICENSE" "code-context.txt" ".env*")
+        EXCLUDE_EXTENSIONS=(jpg png gif svg log zip gz map)
+        ;;
+esac
+
+echo "El contexto completo del código se guardará en: $OUTPUT_FILE"
 
 # --- Construcción Dinámica de Argumentos para 'find' ---
 
 # 1. Construir argumentos para --prune (excluir directorios completos)
-#    Crea una serie de condiciones: -path '*/.git' -o -path '*/node_modules' ...
 prune_args=()
 if [ ${#EXCLUDE_DIRS[@]} -gt 0 ]; then
     for dir in "${EXCLUDE_DIRS[@]}"; do
         prune_args+=(-o -path "*/$dir")
     done
-    # Quita el primer '-o' que sobra del array
     prune_args=("${prune_args[@]:1}")
 fi
 
 # 2. Construir argumentos para archivos a excluir por nombre/patrón
-#    Crea: -name '*.lock' -o -name 'README.md' ...
 name_args=()
 if [ ${#EXCLUDE_FILES[@]} -gt 0 ]; then
     for file in "${EXCLUDE_FILES[@]}"; do
@@ -340,8 +406,7 @@ if [ ${#EXCLUDE_FILES[@]} -gt 0 ]; then
     name_args=("${name_args[@]:1}")
 fi
 
-# 3. Construir argumentos para archivos a excluir por extensión (¡CORREGIDO!)
-#    Crea: -name '*.jpg' -o -name '*.png' ...
+# 3. Construir argumentos para archivos a excluir por extensión
 ext_args=()
 if [ ${#EXCLUDE_EXTENSIONS[@]} -gt 0 ]; then
     for ext in "${EXCLUDE_EXTENSIONS[@]}"; do
@@ -354,13 +419,9 @@ fi
 
 # Limpiar/crear el archivo de salida
 echo "Generando contexto de código completo..."
-echo "===== INICIO DEL CONTEXTO DEL CÓDIGO DEL PROYECTO =====\n\n" > "$OUTPUT_FILE"
+echo "===== INICIO DEL CONTEXTO DEL CÓDIGO DEL PROYECTO: $PROJECT_NAME =====\n\n" > "$OUTPUT_FILE"
 
-# Comando 'find' final que recorre todo el proyecto
-# - Comienza desde la raíz del proyecto.
-# - Usa '-prune' para saltarse completamente los directorios excluidos (muy eficiente).
-# - Concatena todas las condiciones de exclusión para los archivos.
-# - Usa 'print0' y 'read -d' para manejar de forma segura nombres de archivo con espacios.
+# Comando 'find' final
 find "$PROJECT_ROOT" \
     \( "${prune_args[@]}" \) -prune \
     -o \
@@ -369,9 +430,7 @@ find "$PROJECT_ROOT" \
     ! \( "${ext_args[@]}" \) \
     -print0 |
 while IFS= read -r -d $'\0' file; do
-    # Solo procesar si el archivo no está vacío
     if [ -s "$file" ]; then
-        # Obtener la ruta relativa para mostrarla en el archivo de contexto
         rel_path="${file#$PROJECT_ROOT/}"
         echo "--- Fichero: $rel_path ---" >> "$OUTPUT_FILE"
         cat "$file" >> "$OUTPUT_FILE"
@@ -379,5 +438,5 @@ while IFS= read -r -d $'\0' file; do
     fi
 done
 
-echo "===== FIN DEL CONTEXTO DEL CÓDIGO DEL PROYECTO =====" >> "$OUTPUT_FILE"
+echo "\n===== FIN DEL CONTEXTO DEL CÓDIGO DEL PROYECTO: $PROJECT_NAME =====" >> "$OUTPUT_FILE"
 echo "¡Éxito! El contexto se ha escrito en $OUTPUT_FILE"
