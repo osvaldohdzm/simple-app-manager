@@ -6,20 +6,21 @@ if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
   exit 1
 fi
 
-# 2. Moverse a la raíz del repositorio
-repo_root=$(git rev-parse --show-toplevel)
-cd "$repo_root" || exit 1
+# 2. Definir rutas del proyecto
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_NAME=$(basename "$SCRIPT_DIR")
+PROJECT_DIR="$SCRIPT_DIR"
+SPECS_DIR="$(git rev-parse --show-toplevel)/specs"
 
 # 3. Lista de carpetas
 main_dirs=(Bugfix Chore Docs Features Hotfix Refactor Test UX-UI)
 
 # 4. Crear estructura y prompts específicos por carpeta
 for dir in "${main_dirs[@]}"; do
-  mkdir -p "specs/$dir"
-  
+  mkdir -p "$SPECS_DIR/$dir"
   case $dir in
     Bugfix)
-      cat <<'EOF' > "specs/$dir/Prompt.md"
+      cat <<'EOF' > "$SPECS_DIR/$dir/Prompt.md"
 ## Prompt para Bugfix
 
 Actúa como un depurador experto. Tu tarea es detectar y corregir el bug o comportamiento defectuoso en el siguiente fragmento de código o sistema. No reescribas todo: **identifica exactamente la línea o bloque defectuoso y sugiere el cambio mínimo necesario para corregir el error sin afectar otras funcionalidades.** Explica brevemente la causa raíz del problema y por qué tu solución lo resuelve.
@@ -35,7 +36,7 @@ No realices mejoras estilísticas ni refactors generales, a menos que sean estri
 EOF
       ;;
     Bugs)
-      cat <<'EOF' > "specs/$dir/Prompt.md"
+      cat <<'EOF' > "$SPECS_DIR/$dir/Prompt.md"
 ## Prompt para Bugs
 
 Genera una lista de posibles bugs con base en la descripción del comportamiento del sistema. Cada bug debe incluir una breve hipótesis de causa, su impacto potencial y cómo se podría confirmar con pruebas o logs.
@@ -49,7 +50,7 @@ Incluye:
 EOF
       ;;
     Chore)
-      cat <<'EOF' > "specs/$dir/Prompt.md"
+      cat <<'EOF' > "$SPECS_DIR/$dir/Prompt.md"
 ## Prompt para Chore
 
 Redacta tareas técnicas de mantenimiento o configuración del sistema que no estén directamente relacionadas con nuevas funcionalidades ni correcciones visibles. Pueden incluir limpieza de código, configuración de herramientas, actualización de dependencias, etc.
@@ -62,7 +63,7 @@ Usa este formato:
 EOF
       ;;
     Docs)
-      cat <<'EOF' > "specs/$dir/Prompt.md"
+      cat <<'EOF' > "$SPECS_DIR/$dir/Prompt.md"
 ## Prompt para Docs
 
 Genera documentación técnica clara y concisa a partir de código o descripciones funcionales. Puedes usar formato Markdown para estructurar secciones como "Descripción", "Parámetros", "Ejemplo de uso" y "Notas adicionales".
@@ -71,7 +72,7 @@ Evita lenguaje ambiguo. Sé directo y útil para futuros desarrolladores.
 EOF
       ;;
     Features)
-      cat <<'EOF' > "specs/$dir/Prompt.md"
+      cat <<'EOF' > "$SPECS_DIR/$dir/Prompt.md"
 Aplicar los cambios al código técnicos con alta precisión para agentes especializados, garantizando consistencia absoluta en UX/UI y arquitectura de aplicación.
 
 **RESPONSABILIDADES CORE:**
@@ -121,7 +122,7 @@ FEATURE A IMPLEMENTAR:
 EOF
       ;;
     Hotfix)
-      cat <<'EOF' > "specs/$dir/Prompt.md"
+      cat <<'EOF' > "$SPECS_DIR/$dir/Prompt.md"
 ## Prompt para Hotfix
 
 Redacta un cambio urgente que solucione un error crítico en producción. Debe ser lo más mínimo y seguro posible, sin reestructurar el sistema.
@@ -135,7 +136,7 @@ Estructura:
 EOF
       ;;
     Refactor)
-      cat <<'EOF' > "specs/$dir/Prompt.md"
+      cat <<'EOF' > "$SPECS_DIR/$dir/Prompt.md"
 ## Prompt para Refactor
 
 Reformula una porción del código para mejorar su legibilidad, mantenibilidad o eficiencia **sin cambiar su comportamiento funcional**.
@@ -148,7 +149,7 @@ Incluye:
 EOF
       ;;
     Test)
-      cat <<'EOF' > "specs/$dir/Prompt.md"
+      cat <<'EOF' > "$SPECS_DIR/$dir/Prompt.md"
 ## Prompt para Test
 
 Genera casos de prueba automáticos para una función o módulo. Cada prueba debe:
@@ -161,7 +162,7 @@ Indica también qué técnica de prueba se está aplicando (unitaria, integraci�
 EOF
       ;;
     UX-UI)
-      cat <<'EOF' > "specs/$dir/Prompt.md"
+      cat <<'EOF' > "$SPECS_DIR/$dir/Prompt.md"
 ## Prompt para UX-UI
 
 Describe una propuesta de mejora visual o de experiencia de usuario. Incluye:
@@ -175,7 +176,7 @@ EOF
   esac
 done
 
-cat <<'EOF' > "specs/UX-UI Suggestions.md"
+cat <<'EOF' > "$SPECS_DIR/UX-UI Suggestions.md"
 ## Prompt para UX-UI Suggestions
 
 Analiza todo el código fuente disponible y detecta las funcionalidades actualmente implementadas (features).
@@ -204,30 +205,8 @@ EOF
 
 echo "✅ Carpetas y Prompt.md con contenido específico creados."
 
-
-# --- Configuración ---
-# Directorio donde se encuentra este script.
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-# Directorio raíz del proyecto.
-PROJECT_ROOT="$(git rev-parse --show-toplevel)"
-# Nombre del proyecto (el nombre de la carpeta raíz).
-PROJECT_NAME=$(basename "$PROJECT_ROOT")
 # Archivo de salida donde se guardará todo el código.
-OUTPUT_FILE="$PROJECT_ROOT/specs/code-context.txt"
-
-echo "Proyecto raíz detectado en: $PROJECT_ROOT"
-echo "Nombre del proyecto: $PROJECT_NAME"
-
-# --- Creación automática de carpeta de proyecto y copia de Template ---
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_ROOT="$(git rev-parse --show-toplevel)"
-PROJECT_NAME=$(basename "$PROJECT_ROOT")
-TEMPLATE_DIR="$SCRIPT_DIR/../Template"
-if [ ! -d "$PROJECT_ROOT/$PROJECT_NAME" ] && [ -d "$TEMPLATE_DIR" ]; then
-  cp -r "$TEMPLATE_DIR" "$PROJECT_ROOT/$PROJECT_NAME"
-  for f in "$PROJECT_ROOT/$PROJECT_NAME"/*; do mv "$f" "$PROJECT_ROOT/$PROJECT_NAME/$(basename "$f" | sed "s/Template/$PROJECT_NAME/g")"; done
-  echo "[INFO] Proyecto $PROJECT_NAME creado automáticamente a partir de Template."
-fi
+OUTPUT_FILE="$SPECS_DIR/code-context.txt"
 
 # --- Exclusiones Dinámicas por Proyecto ---
 
@@ -433,7 +412,7 @@ echo "Generando contexto de código completo..."
 echo "===== INICIO DEL CONTEXTO DEL CÓDIGO DEL PROYECTO: $PROJECT_NAME =====\n\n" > "$OUTPUT_FILE"
 
 # Comando 'find' final
-find "$PROJECT_ROOT" \
+find "$PROJECT_DIR" \
     \( "${prune_args[@]}" \) -prune \
     -o \
     -type f \
@@ -442,7 +421,7 @@ find "$PROJECT_ROOT" \
     -print0 |
 while IFS= read -r -d $'\0' file; do
     if [ -s "$file" ]; then
-        rel_path="${file#$PROJECT_ROOT/}"
+        rel_path="${file#$PROJECT_DIR/}"
         echo "--- Fichero: $rel_path ---" >> "$OUTPUT_FILE"
         cat "$file" >> "$OUTPUT_FILE"
         printf "\n\n" >> "$OUTPUT_FILE"
