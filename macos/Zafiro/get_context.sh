@@ -302,3 +302,20 @@ done
 
 echo "\n===== FIN DEL CONTEXTO DEL CÓDIGO DEL PROYECTO: $PROJECT_NAME =====" >> "$OUTPUT_FILE"
 echo "¡Éxito! El contexto se ha escrito en $OUTPUT_FILE"
+
+# --- Modo de operación ---
+MODE="full"
+if [ -n "$1" ]; then
+  MODE="$1"
+fi
+
+# --- Creación automática de carpeta de proyecto y copia de Template ---
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+PROJECT_NAME=$(basename "$PROJECT_ROOT")
+TEMPLATE_DIR="$SCRIPT_DIR/../Template"
+if [ ! -d "$PROJECT_ROOT/$PROJECT_NAME" ] && [ -d "$TEMPLATE_DIR" ]; then
+  cp -r "$TEMPLATE_DIR" "$PROJECT_ROOT/$PROJECT_NAME"
+  for f in "$PROJECT_ROOT/$PROJECT_NAME"/*; do mv "$f" "$PROJECT_ROOT/$PROJECT_NAME/$(basename "$f" | sed "s/Template/$PROJECT_NAME/g")"; done
+  echo "[INFO] Proyecto $PROJECT_NAME creado automáticamente a partir de Template."
+fi
