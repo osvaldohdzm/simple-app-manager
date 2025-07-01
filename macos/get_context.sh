@@ -296,6 +296,7 @@ EXCLUDE_FILES=(
     "package-lock.json"
     "yarn.lock"
     "*.lock"
+    "macos/Podfile"
 
     # Configuración local y de IDE
     "*.iml"
@@ -370,7 +371,7 @@ EXCLUDE_EXTENSIONS=(
     md txt
 
     # Scripts auxiliares
-    sh py h gitignore cc cpp rc manifest js
+    sh py h gitignore cc cpp rc manifest js swift
 )
         ;;
 
