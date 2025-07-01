@@ -1,0 +1,19 @@
+proyectos:
+  Zafiro:
+    build: build_zafiro
+    clean: clean_zafiro
+    deploy: deploy_zafiro
+    abort: abort_zafiro
+    publish: publish_zafiro
+  Emerald:
+    build: build_emerald
+    clean: clean_emerald
+    deploy: deploy_emerald
+    abort: abort_emerald
+    publish: publish_emerald
+  Citrino:
+    build: build_citrino
+    clean: clean_citrino
+    deploy: deploy_citrino
+    abort: abort_citrino
+    publish: publish_citrino 
