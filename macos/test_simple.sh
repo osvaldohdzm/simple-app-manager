@@ -1,158 +1,155 @@
 #!/bin/zsh
 
-# --- CONFIGURACIÓN DE LOGGING ---
-LOG_DIR="logs"
-LOG_FILE="$LOG_DIR/deployment_$(date +%Y%m%d_%H%M%S).log"
+# --- CONFIGURACIÓN INICIAL ---
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+PROJECT_NAME=$(basename "$PROJECT_ROOT")
 
-# Crear directorio de logs si no existe
-mkdir -p "$LOG_DIR"
+echo "🔍 Proyecto raíz detectado en: $PROJECT_ROOT"
+echo "📦 Nombre del proyecto: $PROJECT_NAME"
 
-# Función para logging que muestra en terminal y guarda en archivo
-log_message() {
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    local message="[$timestamp] $1"
-    echo "$message" | tee -a "$LOG_FILE"
+# --- LOGGING COMÚN ---
+init_logging() {
+  LOG_DIR="$PROJECT_ROOT/logs"
+  mkdir -p "$LOG_DIR"
+  LOG_FILE="$LOG_DIR/deployment_$(date +%Y%m%d_%H%M%S).log"
 }
 
-# Función para logging de errores
-log_error() {
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    local message="[$timestamp] ❌ ERROR: $1"
-    echo "$message" | tee -a "$LOG_FILE"
+log() {
+  local icon="$1"; shift
+  local msg="$*"
+  local ts=$(date '+%Y-%m-%d %H:%M:%S')
+  echo "[$ts] $icon $msg" | tee -a "$LOG_FILE"
 }
 
-# Función para logging de éxito
-log_success() {
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    local message="[$timestamp] ✅ $1"
-    echo "$message" | tee -a "$LOG_FILE"
-}
+log_info()     { log "ℹ️" "$@"; }
+log_success()  { log "✅" "$@"; }
+log_error()    { log "❌ ERROR:" "$@"; }
+log_command()  { log "🔧 EJECUTANDO:" "$@"; }
 
-# Función para logging de información
-log_info() {
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    local message="[$timestamp] ℹ️  $1"
-    echo "$message" | tee -a "$LOG_FILE"
-}
-
-# Función para logging de comandos ejecutados
-log_command() {
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    local message="[$timestamp] 🔧 EJECUTANDO: $1"
-    echo "$message" | tee -a "$LOG_FILE"
-}
-
-# Iniciar el log
-log_message "🟢 Iniciando el proceso de despliegue para Emerald..."
-log_info "Log file: $LOG_FILE"
-
-# --- 0. CAMBIAR AL DIRECTORIO RAIZ DEL PROYECTO ---
-# Buscar el directorio que contiene package.json
-PROJECT_ROOT=""
-CURRENT_DIR="$(pwd)"
-
-log_info "Buscando directorio raíz del proyecto desde: $CURRENT_DIR"
-
-# Buscar hacia arriba hasta encontrar package.json
-while [ "$CURRENT_DIR" != "/" ]; do
-    if [ -f "$CURRENT_DIR/package.json" ]; then
-        PROJECT_ROOT="$CURRENT_DIR"
-        break
-    fi
-    CURRENT_DIR="$(dirname "$CURRENT_DIR")"
-done
-
-if [ -z "$PROJECT_ROOT" ]; then
-    log_error "No se pudo encontrar el directorio del proyecto (package.json no encontrado)"
-    exit 1
-fi
-
-log_success "Directorio del proyecto encontrado: $PROJECT_ROOT"
-log_command "cd \"$PROJECT_ROOT\""
-cd "$PROJECT_ROOT"
-
-# --- 1. DETECTAR DISPOSITIVO ADB CONECTADO ---
-log_info "Detectando dispositivos Android conectados..."
-
-DEVICE_INFO=$(adb devices -l | sed -n '2p')
-
-if [ -z "$DEVICE_INFO" ]; then
+# --- UTILIDAD COMÚN: DETECCIÓN DE DISPOSITIVO ADB ---
+detect_adb_device() {
+  local device_info=$(adb devices -l | sed -n '2p')
+  if [ -z "$device_info" ]; then
     log_error "No se detectó ningún dispositivo Android conectado vía ADB."
-    log_info "Comandos útiles para debugging:"
-    log_info "  - adb devices"
-    log_info "  - adb devices -l"
-    log_info "  - Verificar que el dispositivo esté en modo desarrollador"
-    log_info "  - Verificar que ADB esté habilitado en el dispositivo"
+    return 1
+  fi
+  DEVICE_ID=$(echo "$device_info" | awk '{print $1}')
+  DEVICE_MODEL=$(echo "$device_info" | sed -nE 's/.*model:([^ ]+).*/\1/p')
+  log_success "Dispositivo detectado: $DEVICE_ID (modelo: ${DEVICE_MODEL:-desconocido})"
+  return 0
+}
+
+# --- FLUJO EMERALD ---
+deploy_emerald() {
+  init_logging
+  log_info "🟢 Despliegue para Emerald iniciado"
+  log_info "Log: $LOG_FILE"
+
+  # Rebuscar raíz (por package.json)
+  local current_dir="$PWD"
+  while [ "$current_dir" != "/" ]; do
+    if [ -f "$current_dir/package.json" ]; then
+      PROJECT_ROOT="$current_dir"
+      cd "$PROJECT_ROOT"
+      log_success "Raíz del proyecto encontrada: $PROJECT_ROOT"
+      break
+    fi
+    current_dir="$(dirname "$current_dir")"
+  done
+
+  if [ -z "$PROJECT_ROOT" ]; then
+    log_error "No se encontró package.json"
     exit 1
-fi
+  fi
 
-DEVICE_ID=$(echo "$DEVICE_INFO" | awk '{print $1}')
-DEVICE_MODEL=$(echo "$DEVICE_INFO" | sed -nE 's/.*model:([^ ]+).*/\1/p')
+  detect_adb_device || exit 1
 
-if [ -z "$DEVICE_MODEL" ]; then
-    log_info "No se pudo obtener el modelo del dispositivo. Lanzando sin parámetro --device."
-fi
-
-log_success "Dispositivo detectado: $DEVICE_ID (modelo: $DEVICE_MODEL)"
-
-# --- 2. INSTALAR DEPENDENCIAS ---
-log_info "Instalando dependencias con 'npm install'..."
-log_command "npm install"
-
-if npm install 2>&1 | tee -a "$LOG_FILE"; then
-    log_success "Dependencias instaladas correctamente."
-else
+  log_info "Instalando dependencias..."
+  log_command "npm install"
+  npm install 2>&1 | tee -a "$LOG_FILE" || {
     log_error "Falló la instalación de dependencias."
-    log_info "Revisar el log completo para más detalles: $LOG_FILE"
     exit 1
-fi
+  }
 
-# --- 3. LIMPIAR DIRECTORIO ANDROID ---
-log_info "Limpiando build anterior de Android..."
-log_command "rm -rf android"
+  log_info "Limpiando directorio android..."
+  log_command "rm -rf android"
+  rm -rf android
 
-if rm -rf android 2>&1 | tee -a "$LOG_FILE"; then
-    log_success "Directorio android limpiado correctamente."
-else
-    log_error "Error al limpiar el directorio android."
-    log_info "Continuando de todas formas..."
-fi
-
-# --- 4. PREBUILD ---
-log_info "Generando archivos nativos con 'expo prebuild'..."
-log_command "npx expo prebuild --platform android"
-
-if npx expo prebuild --platform android 2>&1 | tee -a "$LOG_FILE"; then
-    log_success "Prebuild completado correctamente."
-else
-    log_error "Error en el prebuild."
-    log_info "Revisar el log completo para más detalles: $LOG_FILE"
+  log_info "Ejecutando prebuild..."
+  log_command "npx expo prebuild --platform android"
+  npx expo prebuild --platform android 2>&1 | tee -a "$LOG_FILE" || {
+    log_error "Error en prebuild."
     exit 1
-fi
+  }
 
-# --- 5. EJECUTAR ---
-log_info "Lanzando la aplicación en el dispositivo: $DEVICE_MODEL"
+  log_info "Lanzando aplicación en dispositivo..."
+  if [ -n "$DEVICE_MODEL" ]; then
+    npx expo run:android --device "$DEVICE_MODEL" 2>&1 | tee -a "$LOG_FILE" || {
+      log_error "Error al ejecutar la app."
+      exit 1
+    }
+  else
+    npx expo run:android 2>&1 | tee -a "$LOG_FILE" || {
+      log_error "Error al ejecutar la app."
+      exit 1
+    }
+  fi
 
-if [ -n "$DEVICE_MODEL" ]; then
-    log_command "npx expo run:android --device \"$DEVICE_MODEL\""
-    if npx expo run:android --device "$DEVICE_MODEL" 2>&1 | tee -a "$LOG_FILE"; then
-        log_success "¡La aplicación debería estar ejecutándose en tu dispositivo!"
-    else
-        log_error "No se pudo lanzar la aplicación en el dispositivo."
-        log_info "Verifica que esté desbloqueado y con los permisos ADB activos."
-        log_info "Revisar el log completo para más detalles: $LOG_FILE"
+  log_success "🎉 Despliegue completado para Emerald."
+}
+
+# --- FLUJO ZAFIRO ---
+deploy_zafiro() {
+  init_logging
+  log_info "🔷 Despliegue para Zafiro iniciado"
+  log_info "Log: $LOG_FILE"
+
+  install_adb() {
+    if ! command -v adb &>/dev/null; then
+      echo "⚠️  ADB no encontrado. Instalando con Homebrew..."
+      if ! command -v brew &>/dev/null; then
+        echo "❌ Homebrew es necesario pero no está instalado."
         exit 1
-    fi
-else
-    log_command "npx expo run:android"
-    if npx expo run:android 2>&1 | tee -a "$LOG_FILE"; then
-        log_success "¡La aplicación debería estar ejecutándose en tu dispositivo!"
+      fi
+      brew install android-platform-tools
     else
-        log_error "No se pudo lanzar la aplicación en el dispositivo."
-        log_info "Verifica que esté desbloqueado y con los permisos ADB activos."
-        log_info "Revisar el log completo para más detalles: $LOG_FILE"
-        exit 1
+      echo "✅ ADB ya está instalado."
     fi
-fi
+  }
 
-log_message "🎉 Proceso de despliegue completado. Log guardado en: $LOG_FILE"
+  install_adb
+
+  local device_line=$(adb devices | grep -w "device" | head -n 1)
+  DEVICE_ID=$(echo "$device_line" | awk '{print $1}')
+
+  if [ -z "$DEVICE_ID" ]; then
+    echo "❌ No se encontró ningún dispositivo Android conectado."
+    exit 1
+  fi
+
+  echo "✅ Dispositivo encontrado: $DEVICE_ID"
+
+  echo "🧹 Limpiando proyecto..."
+  ./scripts/clean.sh
+
+  echo "📦 Instalando dependencias..."
+  flutter pub get
+
+  echo "🚀 Ejecutando aplicación en dispositivo..."
+  flutter run -d "$DEVICE_ID"
+}
+
+# --- DESPACHADOR PRINCIPAL ---
+case "$PROJECT_NAME" in
+  "Emerald")
+    deploy_emerald
+    ;;
+  "Zafiro")
+    deploy_zafiro
+    ;;
+  *)
+    echo "⚠️  Proyecto '$PROJECT_NAME' no tiene flujo definido."
+    exit 1
+    ;;
+esac

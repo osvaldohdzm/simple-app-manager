@@ -1,64 +1,89 @@
-#!/bin/bash
+#!/bin/zsh
 
-# --- SCRIPT DE TERMINACIÓN FORZADA (KILL SWITCH) ---
-# Nombre: finish_test_simple.sh
-#
-# Objetivo: Forzar el cierre de TODOS los procesos asociados con la ejecución
-#           de pruebas E2E de Expo/React Native que se han quedado colgados.
-#
-# Uso:
-# 1. Si tu prueba está atascada en una terminal, déjala como está.
-# 2. Abre una NUEVA terminal.
-# 3. Navega a la raíz de tu proyecto (ej: cd ~/Desktop/Emerald).
-# 4. Ejecuta este script: ./finish_test_simple.sh
+# --- CONFIGURACIÓN INICIAL ---
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+PROJECT_NAME=$(basename "$PROJECT_ROOT")
 
-echo "--- 🚨 INTERRUPTOR DE EMERGENCIA ACTIVADO 🚨 ---"
-echo "Forzando la terminación de todos los procesos de la prueba..."
-echo ""
+echo "🛑 Abortando pruebas para el proyecto: $PROJECT_NAME"
+echo "📁 Proyecto raíz: $PROJECT_ROOT"
 
-# 1. Matar el Metro Bundler por su puerto (8081 es el default)
-#    lsof -t -i:8081 devuelve solo el PID del proceso que usa ese puerto.
-echo "[1/4] Buscando y matando proceso en el puerto 8081 (Metro Bundler)..."
-METRO_PID=$(lsof -t -i:8081)
-if [ -n "$METRO_PID" ]; then
-    echo "   ↳ 🛑 Encontrado Metro Bundler con PID $METRO_PID. Terminando por la fuerza (kill -9)..."
+# --- FUNCIÓN LOG SIMPLE ---
+log() {
+  local ts=$(date '+%Y-%m-%d %H:%M:%S')
+  echo "[$ts] $1"
+}
+
+# --- FINALIZADOR PARA PROYECTO EMERALD (React Native / Expo) ---
+abort_emerald() {
+  log "🚨 Ejecutando rutina de limpieza para Emerald (React Native / Expo)..."
+
+  # 1. Puerto Metro (8081)
+  log "🔧 Cerrando procesos en el puerto 8081 (Metro Bundler)..."
+  METRO_PID=$(lsof -t -i:8081)
+  if [ -n "$METRO_PID" ]; then
     kill -9 "$METRO_PID"
-    echo "   ↳ ✅ Proceso en puerto 8081 terminado."
-else
-    echo "   ↳ ✅ No se encontró ningún proceso en el puerto 8081."
-fi
-echo ""
+    log "✅ Proceso en 8081 terminado (PID: $METRO_PID)."
+  else
+    log "✅ No hay proceso activo en 8081."
+  fi
 
-# 2. Usar pkill para matar procesos por el nombre en su línea de comando.
-#    La bandera -f busca en toda la línea de comando, es muy efectivo.
-echo "[2/4] Usando pkill para eliminar procesos de 'expo', 'metro' y 'watchman'..."
-pkill -f "expo run:android"
-pkill -f "metro"
-pkill -f "watchman"
-echo "   ↳ ✅ Comandos pkill ejecutados."
-echo ""
+  # 2. Procesos comunes
+  log "🔧 Terminando procesos 'expo', 'metro', 'watchman'..."
+  pkill -f "expo" >/dev/null 2>&1
+  pkill -f "metro" >/dev/null 2>&1
+  pkill -f "watchman" >/dev/null 2>&1
+  log "✅ Procesos relacionados eliminados (si existían)."
 
-# 3. Detener el daemon de Gradle.
-#    El build de Android a menudo deja procesos de Gradle en segundo plano.
-echo "[3/4] Intentando detener daemons de Gradle..."
-if [ -f "./android/gradlew" ]; then
-    # Nos aseguramos que tenga permisos de ejecución
-    chmod +x ./android/gradlew
-    ./android/gradlew --stop
-    echo "   ↳ ✅ Comando './android/gradlew --stop' ejecutado."
-else
-    echo "   ↳ ⚠️ No se encontró './android/gradlew'. Asegúrate de ejecutar este script desde la raíz del proyecto."
-fi
-echo ""
+  # 3. Detener daemons de Gradle
+  log "🔧 Deteniendo Gradle daemons (si aplica)..."
+  if [ -f "$PROJECT_ROOT/android/gradlew" ]; then
+    chmod +x "$PROJECT_ROOT/android/gradlew"
+    "$PROJECT_ROOT/android/gradlew" --stop
+    log "✅ Gradle detenido correctamente."
+  else
+    log "⚠️ No se encontró 'gradlew' en /android, omitiendo paso."
+  fi
 
-# 4. Limpieza final: matar cualquier proceso relacionado con el proyecto "Emerald".
-#    Esto es muy útil para atrapar cualquier proceso residual.
-echo "[4/4] Limpieza final: Matando procesos residuales del directorio 'Emerald'..."
-# pgrep busca PIDs que coincidan con el patrón, y xargs los pasa a kill -9.
-# Redirigimos la salida de error para no mostrar mensajes si no encuentra nada.
-pgrep -f "Emerald" | xargs kill -9 >/dev/null 2>&1
-echo "   ↳ ✅ Búsqueda y eliminación de procesos residuales completada."
-echo ""
+  # 4. Limpieza general por nombre de proyecto
+  log "🧹 Matando procesos residuales relacionados a 'Emerald'..."
+  pgrep -f "Emerald" | xargs kill -9 2>/dev/null
+  log "✅ Limpieza completada."
+}
 
-echo "--- ✅ PROCESO DE TERMINACIÓN FORZADA COMPLETADO ---"
-echo "Revisa la terminal original. Los procesos deberían haberse detenido."
+# --- FINALIZADOR PARA PROYECTO ZAFIRO (Flutter) ---
+abort_zafiro() {
+  log "🚨 Ejecutando rutina de limpieza para Zafiro (Flutter)..."
+
+  # 1. Detener proceso de flutter run
+  log "🔧 Terminando procesos 'flutter run', 'dart', 'flutter_tester'..."
+  pkill -f "flutter run" >/dev/null 2>&1
+  pkill -f "dart" >/dev/null 2>&1
+  pkill -f "flutter_tester" >/dev/null 2>&1
+  log "✅ Procesos relacionados eliminados (si existían)."
+
+  # 2. Detener ADB si queda colgado
+  log "🔧 Verificando procesos adb..."
+  pkill -f "adb" >/dev/null 2>&1
+  log "✅ ADB finalizado (si estaba activo)."
+
+  # 3. Limpieza por nombre
+  log "🧹 Matando procesos residuales relacionados a 'Zafiro'..."
+  pgrep -f "Zafiro" | xargs kill -9 2>/dev/null
+  log "✅ Limpieza completada."
+}
+
+# --- DESPACHADOR ---
+case "$PROJECT_NAME" in
+  "Emerald")
+    abort_emerald
+    ;;
+  "Zafiro")
+    abort_zafiro
+    ;;
+  *)
+    log "⚠️ Proyecto '$PROJECT_NAME' no tiene una rutina de limpieza definida."
+    ;;
+esac
+
+log "🧯 Finalización forzada de entorno completada."
