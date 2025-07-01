@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Script universal para redirigir deploy al proyecto correspondiente
+# Script para crear manualmente la estructura de un nuevo proyecto a partir de Template
 
 PROJECT_NAME=$(basename "$PWD")
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -8,10 +8,6 @@ if [ ! -d "$PROJECT_NAME" ] && [ -d "$TEMPLATE_DIR" ]; then
   cp -r "$TEMPLATE_DIR" "$PROJECT_NAME"
   for f in "$PROJECT_NAME"/*; do mv "$f" "$PROJECT_NAME/$(basename "$f" | sed "s/Template/$PROJECT_NAME/g")"; done
   echo "[INFO] Proyecto $PROJECT_NAME creado automáticamente a partir de Template."
-fi
-if [ -f "$PROJECT_NAME/deploy.sh" ]; then
-  exec ./$PROJECT_NAME/deploy.sh "$@"
 else
-  echo "❌ No se encontró $PROJECT_NAME/deploy.sh. ¿El proyecto está inicializado?"
-  exit 1
+  echo "[INFO] El proyecto $PROJECT_NAME ya existe o no se encontró la carpeta Template."
 fi 
