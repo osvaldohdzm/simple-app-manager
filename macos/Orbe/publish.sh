@@ -13,9 +13,18 @@
 RCLONE_REMOTE_NAME="gdrive"
 
 # 2. Ruta absoluta del archivo generado por Flutter en modo release.
-SOURCE_FILE="/Users/osvaldohm/Desktop/Emerald/android/app/build/outputs/apk/release/app-release.apk"
+# Obtener la ruta del proyecto Git actual
+PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+if [ -z "$PROJECT_ROOT" ]; then
+    echo "❌ Error: No se pudo determinar la ruta del proyecto Git."
+    echo "   Asegúrate de estar en un repositorio Git válido."
+    exit 1
+fi
+
+# Ruta del archivo APK relativa al proyecto
+SOURCE_FILE="$PROJECT_ROOT/build/app/outputs/flutter-apk/app-release.apk"
 # 3. Nombre con el que se subirá el archivo a Google Drive.
-TARGET_FILENAME="emerald-release.apk"
+TARGET_FILENAME="orbe-release.apk"
 
 GDRIVE_FOLDER_PATH="Z Temporal/apks_releases"
 

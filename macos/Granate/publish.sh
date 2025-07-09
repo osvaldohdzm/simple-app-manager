@@ -13,9 +13,12 @@
 RCLONE_REMOTE_NAME="gdrive"
 
 # 2. Ruta absoluta del archivo generado por Flutter en modo release.
-SOURCE_FILE="/Users/osvaldohm/Desktop/Emerald/android/app/build/outputs/apk/release/app-release.apk"
+# ORIGINAL PARA EMERALD (dejar como referencia):
+# SOURCE_FILE="/Users/osvaldohm/Desktop/Emerald/android/app/build/outputs/apk/release/app-release.apk"
+# NUEVA RUTA PARA GRANATE (Flutter):
+SOURCE_FILE="/Users/osvaldohm/Desktop/projects/Granate/build/app/outputs/flutter-apk/app-release.apk"
 # 3. Nombre con el que se subirá el archivo a Google Drive.
-TARGET_FILENAME="emerald-release.apk"
+TARGET_FILENAME="granate-release.apk"
 
 GDRIVE_FOLDER_PATH="Z Temporal/apks_releases"
 
